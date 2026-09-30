@@ -555,16 +555,39 @@ export class Stack {
     }
 
     /**
-     * Stacks that build from a git repo: git pull and rebuild the buildable services only.
+     * Update pull: for stacks that build from a git repo, git pull and rebuild the buildable services only.
      * Other stacks: pull all images.
      * Then restart if running.
      */
     async update(socket: DockgeSocket) {
         const repos = await this.getGitBuildRepos();
-        if (repos.length === 0) {
-            return this.updateImages(socket);
-        }
+        const exitCode = repos.length > 0 ? await this.pullGitAndBuild(socket, repos) : await this.pullImages(socket, false);
+        return this.upIfRunning(socket, exitCode);
+    }
 
+    /**
+     * Update images: pull newer images for all services, then restart if running.
+     * For stacks with git build contexts, locally built images (and services reusing them) are skipped.
+     */
+    async updateImages(socket: DockgeSocket) {
+        const isGitStack = (await this.getGitBuildRepos()).length > 0;
+        const exitCode = await this.pullImages(socket, isGitStack);
+        return this.upIfRunning(socket, exitCode);
+    }
+
+    /**
+     * Update all: git pull + rebuild, pull the other images, then restart once if running.
+     */
+    async updateAll(socket: DockgeSocket) {
+        const repos = await this.getGitBuildRepos();
+        if (repos.length > 0) {
+            await this.pullGitAndBuild(socket, repos);
+        }
+        const exitCode = await this.pullImages(socket, repos.length > 0);
+        return this.upIfRunning(socket, exitCode);
+    }
+
+    protected async pullGitAndBuild(socket: DockgeSocket, repos : string[]) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
         await this.pullGitRepos(socket, repos);
 
@@ -573,26 +596,20 @@ export class Stack {
         if (exitCode !== 0) {
             throw new Error("Failed to build, please check the terminal output for more information.");
         }
-
-        return this.upIfRunning(socket, exitCode);
+        return exitCode;
     }
 
-    /**
-     * Pull newer images for all services, then restart if running.
-     * For stacks with git build contexts, locally built images (and services reusing them) are skipped.
-     */
-    async updateImages(socket: DockgeSocket) {
+    protected async pullImages(socket: DockgeSocket, skipLocalImages : boolean) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
         const args = [ "compose", "pull" ];
-        if ((await this.getGitBuildRepos()).length > 0) {
+        if (skipLocalImages) {
             args.push("--ignore-buildable", "--ignore-pull-failures");
         }
         const exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", args, this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to pull, please check the terminal output for more information.");
         }
-
-        return this.upIfRunning(socket, exitCode);
+        return exitCode;
     }
 
     protected async upIfRunning(socket: DockgeSocket, exitCode : number) {
