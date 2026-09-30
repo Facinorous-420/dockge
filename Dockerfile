@@ -1,5 +1,7 @@
 FROM node:22-bookworm-slim
 
+# Docker Compose is pinned to v2: v5 leaves its progress output mid-way on some commands
+# (e.g. restart never prints the final "Started" frame), so the terminal in Dockge looks frozen
 RUN apt update && apt install --yes --no-install-recommends \
     curl \
     ca-certificates \
@@ -18,7 +20,7 @@ RUN apt update && apt install --yes --no-install-recommends \
     && apt update \
     && apt --yes --no-install-recommends install \
          docker-ce-cli \
-         docker-compose-plugin \
+         "docker-compose-plugin=2.40.3-*" \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g tsx
 
