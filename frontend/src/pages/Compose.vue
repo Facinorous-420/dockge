@@ -36,11 +36,31 @@
                         {{ $t("restartStack") }}
                     </button>
 
-                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" :title="gitRepos.length > 0 ? $t('updateStackGitHint', [ gitRepos.join(', ') ]) : undefined" @click="updateStack">
+                    <button v-if="!isEditMode && gitRepos.length === 0" class="btn btn-normal" :disabled="processing" @click="updateStack">
                         <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
                         {{ $t("updateStack") }}
-                        <font-awesome-icon v-if="gitRepos.length > 0" icon="code-branch" class="ms-1" />
                     </button>
+
+                    <!-- Stacks that build from a git repo: choose what to update -->
+                    <BDropdown v-if="!isEditMode && gitRepos.length > 0" variant="normal" :disabled="processing">
+                        <template #button-content>
+                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                            {{ $t("updateStack") }}
+                            <font-awesome-icon icon="code-branch" class="ms-1" />
+                        </template>
+                        <BDropdownItem :title="$t('updateStackAllHint', [ gitRepos.join(', ') ])" @click="updateStackAll">
+                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                            {{ $t("updateStackAll") }}
+                        </BDropdownItem>
+                        <BDropdownItem :title="$t('updateStackPullHint', [ gitRepos.join(', ') ])" @click="updateStack">
+                            <font-awesome-icon icon="code-branch" class="me-1" />
+                            {{ $t("updateStackPull") }}
+                        </BDropdownItem>
+                        <BDropdownItem :title="$t('updateStackImagesHint')" @click="updateStackImages">
+                            <font-awesome-icon icon="images" class="me-1" />
+                            {{ $t("updateStackImages") }}
+                        </BDropdownItem>
+                    </BDropdown>
 
                     <button v-if="!isEditMode && active" class="btn btn-normal" :disabled="processing" @click="stopStack">
                         <font-awesome-icon icon="stop" class="me-1" />
@@ -48,10 +68,6 @@
                     </button>
 
                     <BDropdown right text="" variant="normal">
-                        <BDropdownItem v-if="gitRepos.length > 0" :disabled="processing" @click="updateStackImages">
-                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
-                            {{ $t("updateStackImages") }}
-                        </BDropdownItem>
                         <BDropdownItem @click="downStack">
                             <font-awesome-icon icon="stop" class="me-1" />
                             {{ $t("downStack") }}
@@ -656,6 +672,15 @@ export default {
             this.processing = true;
 
             this.$root.emitAgent(this.endpoint, "stopStack", this.stack.name, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+            });
+        },
+
+        updateStackAll() {
+            this.processing = true;
+
+            this.$root.emitAgent(this.endpoint, "updateStackAll", this.stack.name, (res) => {
                 this.processing = false;
                 this.$root.toastRes(res);
             });
