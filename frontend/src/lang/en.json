@@ -18,6 +18,7 @@
     "stopStack": "Stop",
     "restartStack": "Restart",
     "updateStack": "Update",
+    "updateStackGitHint": "Git pull {0}, pull images, rebuild if the source changed, then restart if running",
     "startStack": "Start",
     "downStack": "Stop & Inactive",
     "editStack": "Edit",
