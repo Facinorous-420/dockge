@@ -46,5 +46,5 @@ RUN printf 'Host *\n    BatchMode yes\n    StrictHostKeyChecking accept-new\n' >
 
 VOLUME /app/data
 EXPOSE 5001
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "sh", "/app/extra/docker-entrypoint.sh"]
 CMD ["tsx", "./backend/index.ts"]
