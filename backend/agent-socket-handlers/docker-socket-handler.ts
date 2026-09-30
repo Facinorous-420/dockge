@@ -198,6 +198,28 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
+        // updateStackImages: pull images only (for stacks where Update does git pull + build)
+        agentSocket.on("updateStackImages", async (stackName : unknown, callback) => {
+            try {
+                checkLogin(socket);
+
+                if (typeof(stackName) !== "string") {
+                    throw new ValidationError("Stack name must be a string");
+                }
+
+                const stack = await Stack.getStack(server, stackName);
+                await stack.updateImages(socket);
+                callbackResult({
+                    ok: true,
+                    msg: "Updated",
+                    msgi18n: true,
+                }, callback);
+                server.sendStackList();
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
         // down stack
         agentSocket.on("downStack", async (stackName : unknown, callback) => {
             try {
