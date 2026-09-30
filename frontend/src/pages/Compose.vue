@@ -36,9 +36,10 @@
                         {{ $t("restartStack") }}
                     </button>
 
-                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" @click="updateStack">
+                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" :title="gitRepos.length > 0 ? $t('updateStackGitHint', [ gitRepos.join(', ') ]) : undefined" @click="updateStack">
                         <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
                         {{ $t("updateStack") }}
+                        <font-awesome-icon v-if="gitRepos.length > 0" icon="code-branch" class="ms-1" />
                     </button>
 
                     <button v-if="!isEditMode && active" class="btn btn-normal" :disabled="processing" @click="stopStack">
@@ -47,6 +48,10 @@
                     </button>
 
                     <BDropdown right text="" variant="normal">
+                        <BDropdownItem v-if="gitRepos.length > 0" :disabled="processing" @click="updateStackImages">
+                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                            {{ $t("updateStackImages") }}
+                        </BDropdownItem>
                         <BDropdownItem @click="downStack">
                             <font-awesome-icon icon="stop" class="me-1" />
                             {{ $t("downStack") }}
@@ -348,6 +353,10 @@ export default {
             return this.$root.endpointDisplayFunction(this.endpoint);
         },
 
+        gitRepos() {
+            return this.stack.gitRepos ?? [];
+        },
+
         urls() {
             if (!this.envsubstJSONConfig["x-dockge"] || !this.envsubstJSONConfig["x-dockge"].urls || !Array.isArray(this.envsubstJSONConfig["x-dockge"].urls)) {
                 return [];
@@ -647,6 +656,15 @@ export default {
             this.processing = true;
 
             this.$root.emitAgent(this.endpoint, "stopStack", this.stack.name, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+            });
+        },
+
+        updateStackImages() {
+            this.processing = true;
+
+            this.$root.emitAgent(this.endpoint, "updateStackImages", this.stack.name, (res) => {
                 this.processing = false;
                 this.$root.toastRes(res);
             });

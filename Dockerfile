@@ -6,6 +6,8 @@ RUN apt update && apt install --yes --no-install-recommends \
     gnupg \
     unzip \
     dumb-init \
+    git \
+    openssh-client \
     && install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
     && chmod a+r /etc/apt/keyrings/docker.gpg \
@@ -37,7 +39,12 @@ RUN mkdir ./data
 # - https://github.com/microsoft/node-pty/issues/630#issuecomment-1987212447
 ENV UV_USE_IO_URING=0
 
+# git pull (Update button) runs in a terminal nobody can type into:
+# fail instead of hanging on a password prompt, and trust a git host's SSH key on first use
+ENV GIT_TERMINAL_PROMPT=0
+RUN printf 'Host *\n    BatchMode yes\n    StrictHostKeyChecking accept-new\n' > /etc/ssh/ssh_config.d/dockge.conf
+
 VOLUME /app/data
 EXPOSE 5001
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "sh", "/app/extra/docker-entrypoint.sh"]
 CMD ["tsx", "./backend/index.ts"]
