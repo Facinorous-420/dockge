@@ -74,6 +74,7 @@ export class Stack {
             ...obj,
             composeYAML: this.composeYAML,
             composeENV: this.composeENV,
+            gitRepos: await this.getGitBuildRepos(),
             primaryHostname,
         };
     }
@@ -443,11 +444,114 @@ export class Stack {
         return exitCode;
     }
 
+    /**
+     * Find git repositories that are used as local build contexts by this stack.
+     * Only build contexts inside the stack folder are considered, e.g. `build: ./app`
+     * where `./app` (or the stack folder itself) is a git clone.
+     * Returns the repo root paths relative to the stack folder ("." for the stack folder itself).
+     */
+    async getGitBuildRepos() : Promise<string[]> {
+        if (!this.isManagedByDockge) {
+            return [];
+        }
+
+        let services : Record<string, unknown>;
+        try {
+            services = yaml.parse(this.composeYAML)?.services ?? {};
+        } catch (e) {
+            return [];
+        }
+
+        const stackDir = path.resolve(this.fullPath);
+        const repoSet = new Set<string>();
+
+        for (const service of Object.values(services)) {
+            const build = (service as { build?: unknown })?.build;
+            let context : unknown;
+            if (typeof build === "string") {
+                context = build;
+            } else if (build && typeof build === "object") {
+                context = (build as { context?: unknown }).context ?? ".";
+            } else {
+                continue;
+            }
+
+            // Skip remote contexts (git URLs, tarballs) and ones that need variable interpolation
+            if (typeof context !== "string" || context.includes("://") || context.startsWith("git@") || context.includes("$")) {
+                continue;
+            }
+
+            const contextDir = path.resolve(stackDir, context);
+            if (path.relative(stackDir, contextDir).startsWith("..")) {
+                continue;
+            }
+
+            // Walk up from the build context to the stack folder, looking for a .git entry
+            let dir = contextDir;
+            while (true) {
+                if (await fileExists(path.join(dir, ".git"))) {
+                    repoSet.add(path.relative(stackDir, dir) || ".");
+                    break;
+                }
+                if (dir === stackDir) {
+                    break;
+                }
+                dir = path.dirname(dir);
+            }
+        }
+
+        return [ ...repoSet ];
+    }
+
+    /**
+     * `git pull --ff-only` every git repo used as a build context.
+     * @returns true if any repo got new commits
+     */
+    async pullGitRepos(socket: DockgeSocket) : Promise<boolean> {
+        const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+        // The stacks folder is usually owned by another user than the one Dockge runs as
+        const gitArgs = [ "-c", "safe.directory=*" ];
+        let changed = false;
+
+        for (const repo of await this.getGitBuildRepos()) {
+            const repoDir = path.join(this.fullPath, repo);
+            const getHead = async () => {
+                const res = await childProcessAsync.spawn("git", [ ...gitArgs, "rev-parse", "HEAD" ], {
+                    cwd: repoDir,
+                    encoding: "utf-8",
+                });
+                return res.stdout?.toString().trim();
+            };
+
+            const before = await getHead();
+            const exitCode = await Terminal.exec(this.server, socket, terminalName, "git", [ ...gitArgs, "pull", "--ff-only" ], repoDir);
+            if (exitCode !== 0) {
+                throw new Error(`Failed to git pull "${repo}", please check the terminal output for more information.`);
+            }
+            if (before !== await getHead()) {
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
     async update(socket: DockgeSocket) {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+
+        const gitChanged = await this.pullGitRepos(socket);
+
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "pull" ], this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to pull, please check the terminal output for more information.");
+        }
+
+        // Rebuild when the source changed, so the new image is used on the next start even if the stack is stopped
+        if (gitChanged) {
+            exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "compose", "build" ], this.path);
+            if (exitCode !== 0) {
+                throw new Error("Failed to build, please check the terminal output for more information.");
+            }
         }
 
         // If the stack is not running, we don't need to restart it

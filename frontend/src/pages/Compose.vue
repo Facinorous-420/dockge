@@ -36,9 +36,10 @@
                         {{ $t("restartStack") }}
                     </button>
 
-                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" @click="updateStack">
+                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" :title="gitRepos.length > 0 ? $t('updateStackGitHint', [ gitRepos.join(', ') ]) : undefined" @click="updateStack">
                         <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
                         {{ $t("updateStack") }}
+                        <font-awesome-icon v-if="gitRepos.length > 0" icon="code-branch" class="ms-1" />
                     </button>
 
                     <button v-if="!isEditMode && active" class="btn btn-normal" :disabled="processing" @click="stopStack">
@@ -346,6 +347,10 @@ export default {
     computed: {
         endpointDisplay() {
             return this.$root.endpointDisplayFunction(this.endpoint);
+        },
+
+        gitRepos() {
+            return this.stack.gitRepos ?? [];
         },
 
         urls() {
