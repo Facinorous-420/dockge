@@ -27,6 +27,10 @@ WORKDIR /app
 
 COPY . /app
 
+# Git commit this image is built from, shown next to the version in Settings > About
+ARG DOCKGE_COMMIT=""
+ENV DOCKGE_COMMIT=$DOCKGE_COMMIT
+
 RUN npm install && \
     npm run build:frontend
 
