@@ -52,6 +52,8 @@ jobs:
           file: ./Dockerfile
           # Add linux/arm64 here if you ever need it (much slower to build)
           platforms: linux/amd64
+          build-args: |
+            DOCKGE_COMMIT=${{ github.sha }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
