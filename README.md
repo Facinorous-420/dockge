@@ -14,6 +14,28 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 
 ## + Fork Features
 
+This is a fork of [louislam/dockge](https://github.com/louislam/dockge) (via [Dracrius/dockge](https://github.com/Dracrius/dockge) and [senpaiSubby/dockge](https://github.com/senpaiSubby/dockge)), kept up to date with upstream. The image is published to `ghcr.io/facinorous-420/dockge` (see [How to Install](#-how-to-install)).
+
+### Added in this fork
+
+- Git-based stacks: if a service in a stack builds from a git repo inside the stack folder, the Update button becomes an Update dropdown:
+	- **Update all**: git pull, rebuild, pull newer images for the other services, then restart once if running
+	- **Update pull**: git pull and rebuild, then restart if running (other images are left alone)
+	- **Update images**: pull newer images for the other services, then restart if running (locally built images are skipped)
+	- Git pulls are fast-forward only and never hang waiting for a password prompt
+- Host SSH keys can be mounted for private git repos (see [SSH keys for git pull](#ssh-keys-for-git-pull))
+- Stacks with one-shot containers (init or migration jobs that exited with code 0) are shown as running instead of exited
+- Custom app name and icon (Settings > Appearance), shown in the header, browser tab and favicon, including on the login page (originally by: @senpaiSubby)
+- Optional deletion of stack files: deleting a stack only stops and removes its containers unless "Also delete all stack files" is ticked (originally by: @husa)
+- Settings > About shows the git commit the image was built from next to the version
+- Docker Compose pinned to v2 and plain progress output, so the progress terminal no longer freezes or floods
+- Docker image published to GitHub Container Registry by GitHub Actions
+- Database migration that adds the agent name column to databases created before agent friendly names existed
+
+### From the Dracrius fork
+
+These have since been merged upstream as well; the changes listed under them are still specific to this fork.
+
 - Builds frontend during docker build (#634 originally by:@Jamie- edited to use npm instead)
 - Agent friendly names (#414 by: @lohrbini)
 	- Bug fixes and changes by me:
@@ -41,8 +63,12 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 - 🧑‍💼 Manage your `compose.yaml` files
   - Create/Edit/Start/Stop/Restart/Delete
   - Update Docker Images
+  - Start/Stop/Restart individual containers
+- 📊 CPU and memory usage per container on the stack page
+- 🌐 Global `.env` file (Settings > Global .env) applied to every stack
 - ⌨️ Interactive Editor for `compose.yaml`
-- 🦦 Interactive Web Terminal
+- 🦦 Interactive Web Terminal, with copy/paste and cursor keys
+- 🎨 Light, dark and auto themes
 - 🕷️ (1.4.0 🆕) Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
 - 🏪 Convert `docker run ...` commands into `compose.yaml`
 - 📙 File based structure - Dockge won't kidnap your compose files, they are stored on your drive as usual. You can interact with them using normal `docker compose` commands
@@ -55,6 +81,9 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
 ![](https://github.com/louislam/dockge/assets/1336778/89fc1023-b069-42c0-a01c-918c495f1a6a)
 
 ## 🔧 How to Install
+
+> [!IMPORTANT]
+> The fork features above are only in this fork's image. In your `compose.yaml`, use `image: ghcr.io/facinorous-420/dockge:latest` instead of `louislam/dockge:1` (the downloaded and generated files below use the upstream image, so change that line after downloading).
 
 Requirements:
 - [Docker](https://docs.docker.com/engine/install/) 20+ / Podman
@@ -125,7 +154,7 @@ compose:
 ```
 services:
   dockge:
-    image: louislam/dockge:1
+    image: ghcr.io/facinorous-420/dockge:latest
     restart: unless-stopped
     ports:
       # Host Port:Container Port
@@ -136,6 +165,9 @@ services:
         
       # If you want to use private registries, you need to share the auth file with Dockge:
       # - /root/.docker/:/root/.docker
+
+      # If your git-based stacks pull from private repos over SSH, share your SSH keys (read-only):
+      # - /home/<user>/.ssh:/root/.ssh-host:ro
 
       # Stacks Directory
       # Your stacks directory in the host (The paths inside container must be the same as the host)
@@ -150,6 +182,12 @@ services:
       - PUID=1000 # Set the stack file/dir ownership to this user
       - PGID=1000 # Set the stack file/dir ownership to this group
 ```
+
+### SSH keys for git pull
+
+The Update dropdown on git-based stacks runs `git pull` inside the container. For private repos over SSH, mount the host user's `~/.ssh` folder read-only at `/root/.ssh-host` (see the commented line in the compose above). On startup Dockge copies the keys and `config`/`known_hosts` into `/root/.ssh` owned by root with strict permissions, because ssh refuses keys or a config owned by another user (e.g. a TrueNAS admin user's home folder).
+
+Git and ssh never wait for a prompt: a repo that needs a password or a key you haven't mounted fails with an error in the terminal instead of hanging. A host seen for the first time is added to `known_hosts` automatically; a host whose key has changed is rejected.
 
 ## How to Update
 
