@@ -84,8 +84,8 @@
 
             <!-- URLs -->
             <div v-if="urls.length > 0" class="mb-3">
-                <a v-for="(url, index) in urls" :key="index" target="_blank" :href="url.url">
-                    <span class="badge bg-secondary me-2">{{ url.display }}</span>
+                <a v-for="(urlItem, index) in urls" :key="index" target="_blank" :href="urlItem.url">
+                    <span class="badge bg-secondary me-2">{{ urlItem.display }}</span>
                 </a>
             </div>
 
@@ -119,8 +119,8 @@
                             <div class="mt-3">
                                 <label for="name" class="form-label">{{ $t("dockgeAgent") }}</label>
                                 <select v-model="stack.endpoint" class="form-select">
-                                    <option v-for="(agent, endpoint) in $root.agentList" :key="endpoint" :value="endpoint" :disabled="$root.agentStatusList[endpoint] != 'online'">
-                                        ({{ $root.agentStatusList[endpoint] }}) {{ (agent.name !== '') ? agent.name : agent.url || $t("Current") }}
+                                    <option v-for="(agent, agentEndpoint) in $root.agentList" :key="agentEndpoint" :value="agentEndpoint" :disabled="$root.agentStatusList[agentEndpoint] != 'online'">
+                                        ({{ $root.agentStatusList[agentEndpoint] }}) {{ (agent.name !== '') ? agent.name : agent.url || $t("Current") }}
                                     </option>
                                 </select>
                             </div>
@@ -149,7 +149,8 @@
                             :name="name"
                             :is-edit-mode="isEditMode"
                             :first="name === Object.keys(jsonConfig.services)[0]"
-                            :status="serviceStatusList[name]"
+                            :serviceStatus="serviceStatusList[name]"
+                            :dockerStats="dockerStats"
                             :processing="processing"
                             @start-service="startService"
                             @stop-service="stopService"
@@ -302,6 +303,7 @@ const envDefault = "# VARIABLE=value #comment";
 let yamlErrorTimeout = null;
 
 let serviceStatusTimeout = null;
+let dockerStatsTimeout = null;
 
 export default {
     components: {
@@ -357,11 +359,13 @@ export default {
 
             },
             serviceStatusList: {},
+            dockerStats: {},
             isEditMode: false,
             submitted: false,
             showDeleteDialog: false,
             newContainerName: "",
             stopServiceStatusTimeout: false,
+            stopDockerStatsTimeout: false,
         };
     },
     computed: {
@@ -532,6 +536,7 @@ export default {
         }
 
         this.requestServiceStatus();
+        this.requestDockerStats();
     },
     unmounted() {
 
@@ -541,6 +546,13 @@ export default {
             clearTimeout(serviceStatusTimeout);
             serviceStatusTimeout = setTimeout(async () => {
                 this.requestServiceStatus();
+            }, 5000);
+        },
+
+        startDockerStatsTimeout() {
+            clearTimeout(dockerStatsTimeout);
+            dockerStatsTimeout = setTimeout(async () => {
+                this.requestDockerStats();
             }, 5000);
         },
 
@@ -556,6 +568,17 @@ export default {
                 }
                 if (!this.stopServiceStatusTimeout) {
                     this.startServiceStatusTimeout();
+                }
+            });
+        },
+
+        requestDockerStats() {
+            this.$root.emitAgent(this.endpoint, "dockerStats", (res) => {
+                if (res.ok) {
+                    this.dockerStats = res.dockerStats;
+                }
+                if (!this.stopDockerStatsTimeout) {
+                    this.startDockerStatsTimeout();
                 }
             });
         },
@@ -577,7 +600,9 @@ export default {
         exitAction() {
             console.log("exitAction");
             this.stopServiceStatusTimeout = true;
+            this.stopDockerStatsTimeout = true;
             clearTimeout(serviceStatusTimeout);
+            clearTimeout(dockerStatsTimeout);
 
             // Leave Combined Terminal
             console.debug("leaveCombinedTerminal", this.endpoint, this.stack.name);

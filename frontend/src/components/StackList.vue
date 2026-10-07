@@ -7,8 +7,10 @@
                 </div>
 
                 <!-- TODO -->
-                <button v-if="false" class="btn btn-outline-normal ms-2" :class="{ 'active': selectMode }" type="button"
-                        @click="selectMode = !selectMode">
+                <button
+                    v-if="false" class="btn btn-outline-normal ms-2" :class="{ 'active': selectMode }" type="button"
+                    @click="selectMode = !selectMode"
+                >
                     {{ $t("Select") }}
                 </button>
 
@@ -35,10 +37,14 @@
             <div v-if="selectMode && false" class="selection-controls px-2 pt-2">
                 <input v-model="selectAll" class="form-check-input select-input" type="checkbox" />
 
-                <button class="btn-outline-normal" @click="pauseDialog"><font-awesome-icon icon="pause" size="sm" /> {{
-                    $t("Pause") }}</button>
-                <button class="btn-outline-normal" @click="resumeSelected"><font-awesome-icon icon="play" size="sm" />
-                    {{ $t("Resume") }}</button>
+                <button class="btn-outline-normal" @click="pauseDialog">
+                    <font-awesome-icon icon="pause" size="sm" /> {{
+                        $t("Pause") }}
+                </button>
+                <button class="btn-outline-normal" @click="resumeSelected">
+                    <font-awesome-icon icon="play" size="sm" />
+                    {{ $t("Resume") }}
+                </button>
 
                 <span v-if="selectedStackCount > 0">
                     {{ $t("selectedStackCount", [selectedStackCount]) }}
@@ -49,19 +55,23 @@
             <div v-if="agentStackList[0] && agentStackList[0].stacks.length === 0" class="text-center mt-3">
                 <router-link to="/compose">{{ $t("addFirstStackMsg") }}</router-link>
             </div>
-            <div class="stack-list-inner" v-for="(agent, index) in agentStackList" :key="index">
-                <div v-if="$root.agentCount > 1" class="p-2 agent-select"
-                     @click="closedAgents.set(agent.endpoint, !closedAgents.get(agent.endpoint))">
+            <div v-for="(agent, agentIndex) in agentStackList" :key="agentIndex" class="stack-list-inner">
+                <div
+                    v-if="$root.agentCount > 1" class="p-2 agent-select"
+                    @click="closedAgents.set(agent.endpoint, !closedAgents.get(agent.endpoint))"
+                >
                     <span class="me-1">
                         <font-awesome-icon v-show="closedAgents.get(agent.endpoint)" icon="chevron-circle-right" />
                         <font-awesome-icon v-show="!closedAgents.get(agent.endpoint)" icon="chevron-circle-down" />
                     </span>
                     <span v-if="agent.endpoint === 'current'">{{ $t("currentEndpoint") }}</span>
-                    <span v-else>{{ this.$root.endpointDisplayFunction(agent.endpoint) }}</span>
+                    <span v-else>{{ $root.endpointDisplayFunction(agent.endpoint) }}</span>
                 </div>
-                <StackListItem v-show="$root.agentCount === 1 || !closedAgents.get(agent.endpoint)"
-                               v-for="(item, index) in agent.stacks" :key="index" :stack="item" :isSelectMode="selectMode"
-                               :isSelected="isSelected" :select="select" :deselect="deselect" />
+                <StackListItem
+                    v-for="(item, index) in agent.stacks"
+                    v-show="$root.agentCount === 1 || !closedAgents.get(agent.endpoint)" :key="index" :stack="item" :isSelectMode="selectMode"
+                    :isSelected="isSelected" :select="select" :deselect="deselect"
+                />
             </div>
         </div>
     </div>
@@ -214,7 +224,7 @@ export default {
                     acc.get(endpoint).push(stack);
                     return acc;
                 }, new Map()).entries()
-            ].map(([endpoint, stacks]) => ({
+            ].map(([ endpoint, stacks ]) => ({
                 endpoint,
                 stacks
             })).sort((a, b) => {

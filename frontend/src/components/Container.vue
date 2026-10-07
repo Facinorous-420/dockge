@@ -9,7 +9,7 @@
                 <div v-if="!isEditMode">
                     <span class="badge me-1" :class="bgStyle">{{ status }}</span>
 
-                    <a v-for="port in envsubstService.ports" :key="port" :href="parsePort(port).url" target="_blank">
+                    <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank">
                         <span class="badge me-1 bg-secondary">{{ parsePort(port).display }}</span>
                     </a>
                 </div>
@@ -21,24 +21,30 @@
                             <font-awesome-icon icon="terminal" />
                             Bash
                         </router-link>
-                        <button v-if="this.serviceCount > 1 && !isEditMode && status !== 'running' && status !== 'healthy'"
-                                class="btn btn-primary"
-                                :disabled="processing"
-                                @click="startService">
+                        <button
+                            v-if="serviceCount > 1 && !isEditMode && status !== 'running' && status !== 'healthy'"
+                            class="btn btn-primary"
+                            :disabled="processing"
+                            @click="startService"
+                        >
                             <font-awesome-icon icon="play" class="me-1" />
                             {{ $t("startStack") }}
                         </button>
-                        <button v-if="this.serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
-                                class="btn btn-normal"
-                                :disabled="processing"
-                                @click="restartService">
+                        <button
+                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
+                            class="btn btn-normal"
+                            :disabled="processing"
+                            @click="restartService"
+                        >
                             <font-awesome-icon icon="rotate" class="me-1" />
                             {{ $t("restartStack") }}
                         </button>
-                        <button v-if="this.serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
-                                class="btn btn-normal"
-                                :disabled="processing"
-                                @click="stopService">
+                        <button
+                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
+                            class="btn btn-normal"
+                            :disabled="processing"
+                            @click="stopService"
+                        >
                             <font-awesome-icon icon="stop" class="me-1" />
                             {{ $t("stopStack") }}
                         </button>
@@ -57,6 +63,32 @@
                 <font-awesome-icon icon="trash" />
                 {{ $t("deleteContainer") }}
             </button>
+        </div>
+        <div v-else-if="statsInstances.length > 0" class="mt-2">
+            <div class="d-flex align-items-center gap-3">
+                <template v-if="!expandedStats">
+                    <div class="stats">
+                        {{ $t('CPU') }}: {{ statsInstances[0].CPUPerc }}
+                    </div>
+                    <div class="stats">
+                        {{ $t('memoryAbbreviated') }}: {{ statsInstances[0].MemUsage }}
+                    </div>
+                </template>
+                <div class="d-flex flex-grow-1 justify-content-end">
+                    <button class="btn btn-sm btn-normal" @click="expandedStats = !expandedStats">
+                        <font-awesome-icon :icon="expandedStats ? 'chevron-up' : 'chevron-down'" />
+                    </button>
+                </div>
+            </div>
+            <transition name="slide-fade" appear>
+                <div v-if="expandedStats" class="d-flex flex-column gap-3 mt-2">
+                    <DockerStat
+                        v-for="stat in statsInstances"
+                        :key="stat.Name"
+                        :stat="stat"
+                    />
+                </div>
+            </transition>
         </div>
 
         <transition name="slide-fade" appear>
@@ -161,10 +193,12 @@
 import { defineComponent } from "vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { parseDockerPort } from "../../../common/util-common";
+import DockerStat from "./DockerStat.vue";
 
 export default defineComponent({
     components: {
         FontAwesomeIcon,
+        DockerStat
     },
     props: {
         name: {
@@ -179,9 +213,13 @@ export default defineComponent({
             type: Boolean,
             default: false,
         },
-        status: {
-            type: String,
-            default: "N/A",
+        serviceStatus: {
+            type: Object,
+            default: null,
+        },
+        dockerStats: {
+            type: Object,
+            default: null
         },
         processing: {
             type: Boolean,
@@ -196,6 +234,7 @@ export default defineComponent({
     data() {
         return {
             showConfig: false,
+            expandedStats: false,
         };
     },
     computed: {
@@ -300,6 +339,22 @@ export default defineComponent({
                 return "";
             }
         },
+        statsInstances() {
+            if (!this.serviceStatus) {
+                return [];
+            }
+
+            return this.serviceStatus
+                .map(s => this.dockerStats[s.name])
+                .filter(s => !!s)
+                .sort((a, b) => a.Name.localeCompare(b.Name));
+        },
+        status() {
+            if (!this.serviceStatus) {
+                return "N/A";
+            }
+            return this.serviceStatus[0].status;
+        }
     },
     mounted() {
         if (this.first) {
@@ -351,6 +406,11 @@ export default defineComponent({
         width: 100%;
         align-items: center;
         justify-content: end;
+    }
+
+    .stats {
+        font-size: 0.8rem;
+        color: #6c757d;
     }
 }
 </style>
