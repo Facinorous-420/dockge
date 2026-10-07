@@ -1,7 +1,7 @@
 import { AgentSocketHandler } from "../agent-socket-handler";
 import { DockgeServer } from "../dockge-server";
 import { callbackError, callbackResult, checkLogin, DockgeSocket, ValidationError } from "../util-server";
-import { Stack } from "../stack";
+import { DeleteOptions, Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
 
 export class DockerSocketHandler extends AgentSocketHandler {
@@ -40,7 +40,12 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
-        agentSocket.on("deleteStack", async (name : unknown, callback) => {
+        agentSocket.on("deleteStack", async (name : unknown, deleteOptions : unknown, callback?) => {
+            // Older Dockge instances call deleteStack(name, callback) without options
+            if (typeof(deleteOptions) === "function") {
+                callback = deleteOptions;
+                deleteOptions = undefined;
+            }
             try {
                 checkLogin(socket);
                 if (typeof(name) !== "string") {
@@ -48,8 +53,13 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 }
                 const stack = await Stack.getStack(server, name);
 
+                const options : DeleteOptions = {
+                    // Default to the previous behaviour (delete everything) when no options are sent
+                    deleteStackFiles: (deleteOptions as DeleteOptions | undefined)?.deleteStackFiles ?? true,
+                };
+
                 try {
-                    await stack.delete(socket);
+                    await stack.delete(socket, options);
                 } catch (e) {
                     server.sendStackList();
                     throw e;
