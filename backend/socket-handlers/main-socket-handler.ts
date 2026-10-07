@@ -289,6 +289,22 @@ export class MainSocketHandler extends SocketHandler {
                 }
                 delete data.globalENV;
 
+                // Branding: the icon is stored as a data URL and sent to every client, so keep it small
+                if (data.appName !== undefined && data.appName !== null) {
+                    if (typeof data.appName !== "string" || data.appName.length > 64) {
+                        throw new Error("App name must be at most 64 characters");
+                    }
+                    data.appName = data.appName.trim();
+                }
+                if (data.appIcon) {
+                    if (typeof data.appIcon !== "string" || !/^data:image\/(png|jpeg|gif|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);base64,/.test(data.appIcon)) {
+                        throw new Error("App icon must be an image");
+                    }
+                    if (data.appIcon.length > 700 * 1024) {
+                        throw new Error("App icon must be smaller than 512 KB");
+                    }
+                }
+
                 await Settings.setSettings("general", data);
 
                 callback({

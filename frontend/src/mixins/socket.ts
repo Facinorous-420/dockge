@@ -9,6 +9,9 @@ let socket : Socket;
 
 let terminalMap : Map<string, Terminal> = new Map();
 
+// The app name currently shown in document.title (index.html starts with "Dockge")
+let appliedAppName = "Dockge";
+
 export default defineComponent({
     data() {
         return {
@@ -48,6 +51,14 @@ export default defineComponent({
         };
     },
     computed: {
+
+        appName() {
+            return this.info.appName || "Dockge";
+        },
+
+        appIcon() {
+            return this.info.appIcon || "/icon.svg";
+        },
 
         agentCount() {
             return Object.keys(this.agentList).length;
@@ -138,6 +149,22 @@ export default defineComponent({
 
     },
     methods: {
+
+        /**
+         * Apply the custom app name and icon to the browser tab
+         * @returns {void}
+         */
+        applyBranding() {
+            // Swap only the name part so suffixes like " - Login" are kept
+            document.title = document.title.replace(appliedAppName, () => this.appName);
+            appliedAppName = this.appName;
+
+            const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+            if (favicon) {
+                favicon.removeAttribute("type");
+                favicon.href = this.appIcon;
+            }
+        },
 
         endpointDisplayFunction(endpoint : string) {
             for (const [ k, v ] of Object.entries(this.$data.agentList)) {
@@ -234,6 +261,7 @@ export default defineComponent({
 
             socket.on("info", (info) => {
                 this.info = info;
+                this.applyBranding();
             });
 
             socket.on("autoLogin", () => {

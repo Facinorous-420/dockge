@@ -443,6 +443,9 @@ export class DockgeServer {
             latestVersion: latestVersionProperty,
             isContainer,
             primaryHostname: await Settings.get("primaryHostname"),
+            // Branding is sent before login too, so the login page is branded as well
+            appName: await Settings.get("appName"),
+            appIcon: await Settings.get("appIcon"),
             //serverTimezone: await this.getTimezone(),
             //serverTimezoneOffset: this.getTimezoneOffset(),
         });
