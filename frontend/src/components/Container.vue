@@ -17,12 +17,12 @@
             <div class="col-7">
                 <div class="function">
                     <div class="btn-group me-2" role="group">
-                        <router-link v-if="!isEditMode && (status === 'running' || status === 'healthy')" class="btn btn-normal" :to="terminalRouteLink" disabled="">
+                        <router-link v-if="!isEditMode && isRunning" class="btn btn-normal" :to="terminalRouteLink" disabled="">
                             <font-awesome-icon icon="terminal" />
                             Bash
                         </router-link>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && status !== 'running' && status !== 'healthy'"
+                            v-if="serviceCount > 1 && !isEditMode && !isRunning"
                             class="btn btn-primary"
                             :disabled="processing"
                             @click="startService"
@@ -31,7 +31,7 @@
                             {{ $t("startStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
+                            v-if="serviceCount > 1 && !isEditMode && isRunning"
                             class="btn btn-normal"
                             :disabled="processing"
                             @click="restartService"
@@ -40,7 +40,7 @@
                             {{ $t("restartStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
+                            v-if="serviceCount > 1 && !isEditMode && isRunning"
                             class="btn btn-normal"
                             :disabled="processing"
                             @click="stopService"
@@ -252,6 +252,8 @@ export default defineComponent({
                 return "bg-primary";
             } else if (this.status === "unhealthy") {
                 return "bg-danger";
+            } else if (this.status === "starting") {
+                return "bg-warning";
             } else {
                 return "bg-secondary";
             }
@@ -354,6 +356,19 @@ export default defineComponent({
                 return "N/A";
             }
             return this.serviceStatus[0].status;
+        },
+
+        // The container is up, regardless of its healthcheck result (healthy / unhealthy / starting)
+        isRunning() {
+            if (!this.serviceStatus) {
+                return false;
+            }
+            const s = this.serviceStatus[0];
+            if (s.state) {
+                return s.state === "running";
+            }
+            // Older agents only send the combined status
+            return [ "running", "healthy", "unhealthy", "starting" ].includes(s.status);
         }
     },
     mounted() {

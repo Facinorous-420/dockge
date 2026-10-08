@@ -698,6 +698,7 @@ export class Stack {
                 }
                 statusList.get(obj.Service)?.push({
                     status: obj.Health || obj.State,
+                    state: obj.State,
                     name: obj.Name
                 });
             };
